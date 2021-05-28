@@ -38,6 +38,8 @@ const (
 	ProvisioningArtifactReadyTimeout   = 3 * time.Minute
 	ProvisioningArtifactDeletedTimeout = 3 * time.Minute
 
+	LaunchPathsReadyTimeout = 3 * time.Minute
+
 	StatusNotFound    = "NOT_FOUND"
 	StatusUnavailable = "UNAVAILABLE"
 
@@ -406,4 +408,21 @@ func ProvisioningArtifactDeleted(conn *servicecatalog.ServiceCatalog, id, produc
 	}
 
 	return nil
+}
+
+func LaunchPathsReady(conn *servicecatalog.ServiceCatalog, acceptLanguage, productID string) ([]*servicecatalog.LaunchPathSummary, error) {
+	stateConf := &resource.StateChangeConf{
+		Pending: []string{StatusNotFound},
+		Target:  []string{servicecatalog.StatusAvailable},
+		Refresh: LaunchPathsStatus(conn, acceptLanguage, productID),
+		Timeout: LaunchPathsReadyTimeout,
+	}
+
+	outputRaw, err := stateConf.WaitForState()
+
+	if output, ok := outputRaw.([]*servicecatalog.LaunchPathSummary); ok {
+		return output, err
+	}
+
+	return nil, err
 }
